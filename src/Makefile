@@ -10,7 +10,7 @@
 
 # This defaults bits to 32, but allows it to be overridden on the command
 # line
-BITS = 32
+BITS = 64
 
 # Output directory
 ODIR  = obj32
@@ -18,7 +18,7 @@ tmp  := $(shell mkdir -p $(ODIR))
 
 # Basic compiler configuration and flags
 CXX      = g++
-CXXFLAGS = -MMD -ggdb -O3 -std=gnu++11 -m$(BITS)
+CXXFLAGS = -MMD -ggdb -O3 -std=gnu++17 -m$(BITS)
 LDFLAGS	 = -m$(BITS) -lpthread -lrt
 
 # The basenames of the c++ files that this program uses

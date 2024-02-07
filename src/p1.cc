@@ -42,11 +42,13 @@ void parseargs(int argc, char** argv, config_t& cfg) {
 
 // The main routine simply parses the arguments, dumps the arguments, populates the
 int main(int argc, char** argv) {
+    
     // get the configuration, print it
     config_t config;
     parseargs(argc, argv, config);
     config.dump();
 
+    
     // crash if the iterations are negative
     assert(config.iters > 0);
 

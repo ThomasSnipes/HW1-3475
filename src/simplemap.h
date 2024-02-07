@@ -14,45 +14,69 @@
 #include <vector>
 #include <thread>
 #include <cassert>
-#include <mutex>
+#include <list>
+#include <atomic>
 
+// ----- This struct was found online ----- //
+template <typename T>
+struct atomwrapper
+{
+  std::atomic<T> _a;
 
-template <class K, class V>
+  atomwrapper()
+    :_a()
+  {}
+
+  atomwrapper(const std::atomic<T> &a)
+    :_a(a.load())
+  {}
+
+  atomwrapper(const atomwrapper &other)
+    :_a(other._a.load())
+  {}
+
+  atomwrapper &operator=(const atomwrapper &other)
+  {
+    _a.store(other._a.load());
+    return *this;
+  }
+};
+// ---------------------------------------- //
+
+template <class K, class V, class F>
 class simplemap_t {
 
   public:
 
-    // Define the two vectors of types K and V
-	// << use std::vector<K> >>
     std::vector<K> keys;
     std::vector<V> values;
-    //std::vector<std::mutex> lockStripes;
+    std::vector<F> flags;
 
     // The constructor should just initialize the vectors to be empty
-    simplemap_t(): keys(), values() {
-        //const size_t numLockStripes = 16;
-        //lockStripes.resize(numLockStripes);
-        //assert(keys.empty());
-        //assert(values.empty());
+    simplemap_t()  {
+        keys.reserve(10000);
+        values.reserve(10000);
+        flags.reserve(10000);
     }
 
 
     // Insert (key, val) if and only if the key is not currently present in
     // the map.  Returns true on success, false if the key was
     // already present.
-    bool insert(K key, V val) {
-        //std::lock_guard<std::mutex> lock(getLock(key));
+    bool insert(K key, V val, F flag) {
 
         for (auto i = keys.begin(); i != keys.end(); ++i){
             if (*i == key){
                 return false;
             }
         }
-          
+
         // insert the key and value.  Note that indices should, by default, match
         // between these two vectors.
         keys.push_back(key);
         values.push_back(val);
+        flags.push_back(flag);
+
         return true;
     }
 
@@ -60,8 +84,7 @@ class simplemap_t {
     // and return true; if key is not present in the data structure, return
     // false.
     bool update(K key, V val) {
-        //std::lock_guard<std::mutex> lock(getLock(key));
-
+        
         for (auto i = keys.begin(); i != keys.end(); ++i){
             if (*i == key){
                 values.push_back(val);
@@ -74,16 +97,20 @@ class simplemap_t {
     // Remove the (key, val) pair if it is present in the data structure.
     // Returns true on success, false if the key was not already present.
     bool remove(K key) {
-        //std::lock_guard<std::mutex> lock(getLock(key));
 
-        for (auto i = keys.begin(); i != keys.end(); ++i){
-            if (*i == key){
-                size_t index = std::distance(keys.begin(), i);
-                keys.erase(key);
-                values.erase(values[index]);
-                return true;
-            }
+        auto it = std::remove(keys.begin(), keys.end(), key);
+
+        if (it != keys.end()) {
+            size_t index = std::distance(keys.begin(), it);
+
+            // Erase elements from the vector based on the new end iterator
+            keys.erase(it, keys.end());
+            values.erase(values.begin() + index);
+            flags.erase(flags.begin() + index);
+
+            return true;
         }
+        
         return false;
     }
 
@@ -93,7 +120,6 @@ class simplemap_t {
     // Be careful not to share the memory of the map with application threads, you might
     // get unexpected race conditions
     std::pair<V, bool> lookup(K key) {
-        //std::lock_guard<std::mutex> lock(getLock(key));
 
         for (auto i = keys.begin(); i != keys.end(); ++i){
             if (*i == key){
@@ -101,7 +127,6 @@ class simplemap_t {
                 return std::make_pair(values[index], true);
             }
         }
-      
         return std::make_pair(0, false);
     }
 
@@ -111,31 +136,4 @@ class simplemap_t {
     		f(i, values.at(i));
     	}
     }
-
-    // Step 4
-	// Define a function "balance" that sums the amount of all the
-	// bank accounts in the map. In order to have a consistent result,
-	// the execution of this function should happen atomically:
-	// no other deposit operations should interleave.
-	float balance(){
-        float total = 0.0;
-
-		
-        return total;
-	}
-
-    // private:
-    //     bool containsKey(K key) {
-    //         return std::find(keys.begin(), keys.end(), key) != keys.end();
-    //     }
-
-    //     typename std::vector<K>::iterator findKey(K key) {
-    //         return std::find(keys.begin(), keys.end(), key);
-    //     }
-
-    //     std::mutex& getLock(K key) {
-    //         // Use a hash function to determine the lock stripe
-    //         size_t stripeIndex = std::hash<K>{}(key) % lockStripes.size();
-    //         return lockStripes[stripeIndex];
-    //     }
 };
